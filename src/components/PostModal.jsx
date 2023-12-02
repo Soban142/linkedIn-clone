@@ -47,8 +47,9 @@ const PostModal = ({ handleClick, showModal }) => {
   };
 
   const handlePost = (e) => {
+    handleClick(e);
+    dispatch(loader("true"));
     if (shareImage !== "") {
-      dispatch(loader("true"));
       // console.log(shareImage);
       /** @type {any} */
       const metadata = {
@@ -95,7 +96,7 @@ const PostModal = ({ handleClick, showModal }) => {
             try {
               const docRef = await addDoc(collection(db, "articles"), {
                 user: {
-                  description: user.email,
+                  email: user.email,
                   title: user.displayName,
                   date: "",
                   image: user.photoURL,
@@ -106,13 +107,13 @@ const PostModal = ({ handleClick, showModal }) => {
                 description: editorText,
               });
               console.log("Document written with ID: ", docRef.id);
+              dispatch(loader("false"));
             } catch (e) {
               console.error("Error adding document: ", e);
             }
           });
         }
       );
-      dispatch(loader("false"));
     } else {
       dispatch(loader("true"));
       try {
@@ -129,11 +130,11 @@ const PostModal = ({ handleClick, showModal }) => {
           description: editorText,
         }).then((res) => {
           console.log("Document written with ID: ", res.id);
+          dispatch(loader("false"));
         });
       } catch (e) {
         console.error("Error adding document: ", e);
       }
-      dispatch(loader("false"));
     }
   };
 

@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import PostModal from "./PostModal";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { db, collection, query, where, getDocs } from "../firebase";
+import { fetchArticles } from "../redux/articleSlice";
+import ReactPlayer from "react-player";
 
 const Main = () => {
+  const dispatch = useDispatch();
+
   const user = useSelector((state) => state.user.user);
-  const article = useSelector((state) => state.article.isFetching);
+  const articleFromRedux = useSelector((state) => state.article);
+  console.log(articleFromRedux);
+
   const [showModal, setShowModal] = useState("close");
+  const [articlesData, setArticlesData] = useState([]);
 
   const handleClick = (e) => {
     e.preventDefault();
@@ -26,6 +34,29 @@ const Main = () => {
         break;
     }
   };
+
+  useEffect(() => {
+    const getArticles = async () => {
+      const q = query(collection(db, "articles"));
+
+      const querySnapshot = await getDocs(q);
+      const articles = [];
+      console.log(querySnapshot);
+      querySnapshot.forEach((doc) => {
+        articles.push(doc.data());
+        // setArticlesData((prev) => {
+        //   return [...prev, doc.data()];
+        // });
+        // console.log(doc.id, " => ", doc.data());
+      });
+      setArticlesData(articles);
+      dispatch(fetchArticles(articlesData));
+    };
+    getArticles();
+  }, [dispatch]);
+
+  console.log(articlesData);
+
   return (
     <Container>
       <ShareBox>
@@ -38,7 +69,7 @@ const Main = () => {
 
           <button
             onClick={handleClick}
-            disabled={article.isFetching ? true : false}
+            disabled={articleFromRedux.isFetching ? true : false}
           >
             Start a post
           </button>
@@ -66,64 +97,73 @@ const Main = () => {
         </div>
       </ShareBox>
       <Content>
-        {article.isFetching && "Loading...."}
-        <Article>
-          <SharedActor>
-            <a>
-              <img src="/images/user.svg" alt="" />
-              <div>
-                <span>Title</span>
-                <span>Info</span>
-                <span>Date</span>
-              </div>
-            </a>
-            <button>
-              <img src="/images/ellipsis-icon.png" alt="" />
-            </button>
-          </SharedActor>
-          <Description>Desc</Description>
-          <SharedImg>
-            <a>
-              <img src="/images/shared-image.jpg" alt="" />
-            </a>
-          </SharedImg>
-          <SocialCounts>
-            <li>
-              <button>
-                <img
-                  src="https://static-exp1.licdn.com/sc/h/d310t2g24pvdy4pt1jkedo4yb"
-                  alt=""
-                />
-                <img
-                  src="https://static-exp1.licdn.com/sc/h/5thsbmikm6a8uov24ygwd914f"
-                  alt=""
-                />
-                <span>75</span>
-              </button>
-            </li>
-            <li>
-              <a>2 comments</a>
-            </li>
-          </SocialCounts>
-          <SocialActions>
-            <button>
-              <img src="/images/like-icon.svg" alt="" />
-              <span>Like</span>
-            </button>
-            <button>
-              <img src=".images/comments-icon.svg" alt="" />
-              <span>Comments</span>
-            </button>
-            <button>
-              <img src=".images/share-icon.svg" alt="" />
-              <span>Share</span>
-            </button>
-            <button>
-              <img src=".images/send-icon.svg" alt="" />
-              <span>Send</span>
-            </button>
-          </SocialActions>
-        </Article>
+        {articleFromRedux.isFetching && "Loading..."}
+        {articleFromRedux.articles?.length > 0 &&
+          articleFromRedux.articles.map((article, key) => (
+            <Article key={key}>
+              <SharedActor>
+                <a>
+                  <img src="/images/user.svg" alt="" />
+                  <div>
+                    <span>{article.user.title}</span>
+                    <span>
+                      {article.user.email || article.user.description}
+                    </span>
+                    <span>{article.user.date}</span>
+                  </div>
+                </a>
+                <button>
+                  <img src="/images/ellipsis-icon.png" alt="" />
+                </button>
+              </SharedActor>
+              <Description>{article.description}</Description>
+              <SharedImg>
+                <a>
+                  {!article.sharedImg && article.video ? (
+                    <ReactPlayer url={article.video} width={"100%"} />
+                  ) : (
+                    article.sharedImg && <img src={article.sharedImg} alt="" />
+                  )}
+                </a>
+              </SharedImg>
+              <SocialCounts>
+                <li>
+                  <button>
+                    <img
+                      src="https://static-exp1.licdn.com/sc/h/d310t2g24pvdy4pt1jkedo4yb"
+                      alt=""
+                    />
+                    <img
+                      src="https://static-exp1.licdn.com/sc/h/5thsbmikm6a8uov24ygwd914f"
+                      alt=""
+                    />
+                    <span>75</span>
+                  </button>
+                </li>
+                <li>
+                  <a>{article.comments}</a>
+                </li>
+              </SocialCounts>
+              <SocialActions>
+                <button>
+                  <img src="/images/like-icon.svg" alt="" />
+                  <span>Like</span>
+                </button>
+                <button>
+                  <img src=".images/comments-icon.svg" alt="" />
+                  <span>Comments</span>
+                </button>
+                <button>
+                  <img src=".images/share-icon.svg" alt="" />
+                  <span>Share</span>
+                </button>
+                <button>
+                  <img src=".images/send-icon.svg" alt="" />
+                  <span>Send</span>
+                </button>
+              </SocialActions>
+            </Article>
+          ))}
       </Content>
       <PostModal showModal={showModal} handleClick={handleClick} />
     </Container>
@@ -296,6 +336,8 @@ const SocialCounts = styled.ul`
     font-size: 12px;
     button {
       display: flex;
+      border: none;
+      background-color: white;
     }
   }
 `;
@@ -312,6 +354,8 @@ const SocialActions = styled.div`
     align-items: center;
     padding: 8px;
     color: #0a66c2;
+    border: none;
+    background-color: white;
 
     @media (min-width: 768px) {
       span {
@@ -321,6 +365,11 @@ const SocialActions = styled.div`
   }
 `;
 
-const Content = styled.div``;
+const Content = styled.div`
+  text-align: center;
+  & > img {
+    width: 30px;
+  }
+`;
 
 export default Main;
